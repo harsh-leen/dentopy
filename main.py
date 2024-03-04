@@ -1,4 +1,4 @@
-from typing import Any, Optional, Dict, List, Type
+from typing import Any, Optional, Dict, List, Set
 import click
 import json
 import os
@@ -10,12 +10,13 @@ def process_file(file_path: str, output_directory: str):
     if not isinstance(data, list):
         raise ValueError('Data is not a list')
 
-    print(f'File contains {len(data)} items')
-
     pydantic_model_name = ''.join(part.capitalize() for part in file_path.split('/')[-1].split('.')[0].rstrip('s').split('_'))
-    model_content = [f"class {pydantic_model_name}(BaseModel):"]
 
+    # Initialize containers for field definitions and required imports
     fields: Dict[str, str] = {}
+    required_imports: Set[str] = set()
+    required_imports.add("from pydantic import BaseModel")  # Always required for the BaseModel
+
     keys_frequency: Dict[str, int] = {}
     for item in data:
         for key in item.keys():
@@ -23,9 +24,12 @@ def process_file(file_path: str, output_directory: str):
 
     for key in keys_frequency:
         all_values = [item.get(key) for item in data if key in item]
-        field_type = "Any"  # Default type
+        field_type = "Any"
+        required_imports.add("from typing import Any")
+
         if all(isinstance(val, dict) for val in all_values if val is not None):
             field_type = "Dict[str, Any]"
+            required_imports.add("from typing import Dict")
         elif all(isinstance(val, list) for val in all_values if val is not None):
             list_type = "Any"  # Simplified to Any for mixed or empty lists
             if all_values and all_values[0]:
@@ -33,6 +37,7 @@ def process_file(file_path: str, output_directory: str):
                 if len(list_types) == 1:
                     list_type = list(list_types)[0]
             field_type = f"List[{list_type}]"
+            required_imports.add("from typing import List")
         elif all(isinstance(val, str) for val in all_values if val is not None):
             field_type = "str"
         elif all(isinstance(val, int) for val in all_values if val is not None):
@@ -44,15 +49,21 @@ def process_file(file_path: str, output_directory: str):
 
         if keys_frequency[key] < len(data):  # Field is not present in all items, make it optional
             fields[key] = f"Optional[{field_type}] = None"
+            required_imports.add("from typing import Optional")
         else:
             fields[key] = field_type
-        model_content.append(f"    {key}: {fields[key]}")
 
-    model_definition = "\n".join(model_content)
+    # Generate the model definition
+    model_content = [f"class {pydantic_model_name}(BaseModel):"]
+    for key, field_type in fields.items():
+        model_content.append(f"    {key}: {field_type}")
+
+    # Prepare the output content including imports
+    output_content = "\n".join(sorted(list(required_imports))) + "\n\n" + "\n".join(model_content)
     output_file_path = os.path.join(output_directory, f"{pydantic_model_name}.py")
     os.makedirs(output_directory, exist_ok=True)
     with open(output_file_path, 'w') as output_file:
-        output_file.write(model_definition)
+        output_file.write(output_content)
     print(f'Model {pydantic_model_name} written to {output_file_path}')
 
 @click.command()
