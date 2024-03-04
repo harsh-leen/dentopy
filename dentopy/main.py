@@ -1,4 +1,6 @@
-from typing import Any, Optional, Dict, List, Set
+#!/usr/bin/env python3
+
+from typing import Dict, Set
 import click
 import json
 import os
