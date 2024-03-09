@@ -26,6 +26,24 @@ def determine_field_type_from_values(all_values: List[Any]) -> str:
         field_type = "bool"
     return field_type
 
+def get_field_key_and_types(data: List[Dict[str, Any]]) -> Dict[str, str]:
+    keys_frequency: Dict[str, int] = {}
+    for item in data:
+        for key in item.keys():
+            keys_frequency[key] = keys_frequency.get(key, 0) + 1
+
+    fields: Dict[str, str] = {}
+    for key in keys_frequency:
+        all_values = [item.get(key) for item in data if key in item]
+        field_type = determine_field_type_from_values(all_values)
+
+        if keys_frequency[key] < len(data):
+            fields[key] = f"Optional[{field_type}] = None"
+        else:
+            fields[key] = field_type
+    return fields
+
+
 def process_file(file_path: str, output_directory: str):
     with open(file_path, 'r') as file:
         data = json.loads(file.read())
@@ -36,26 +54,12 @@ def process_file(file_path: str, output_directory: str):
     pydantic_model_name = ''.join(part.capitalize() for part in file_path.split('/')[-1].split('.')[0].rstrip('s').split('_'))
 
     # Initialize containers for field definitions
-    fields: Dict[str, str] = {}
-
-    keys_frequency: Dict[str, int] = {}
-    for item in data:
-        for key in item.keys():
-            keys_frequency[key] = keys_frequency.get(key, 0) + 1
-
-    for key in keys_frequency:
-        all_values = [item.get(key) for item in data if key in item]
-        field_type = determine_field_type_from_values(all_values)
-
-        if keys_frequency[key] < len(data):  # Field is not present in all items, make it optional
-            fields[key] = f"Optional[{field_type}] = None"
-        else:
-            fields[key] = field_type
+    fields = get_field_key_and_types(data)
 
     # Generate the model definition
     model_content = [f"class {pydantic_model_name}(BaseModel):"]
-    for key, field_type in fields.items():
-        model_content.append(f"    {key}: {field_type}")
+    for field_key, field_type in fields.items():
+        model_content.append(f"    {field_key}: {field_type}")
 
     # Prepare the output content including imports
     output_content = "\n".join(model_content)
