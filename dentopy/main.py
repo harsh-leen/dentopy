@@ -13,24 +13,26 @@ class FieldMetadata(BaseModel):
     is_optional: bool
 
 
-def determine_field_type_from_values(all_values: List[Any]) -> str:
+def determine_field_type_from_values(data: List[Any]) -> str:
     field_type = "Any"
-    if all(isinstance(val, dict) for val in all_values if val is not None):
+    if all(isinstance(val, dict) for val in data if val is not None):
         field_type = "Dict"
-    elif all(isinstance(val, list) for val in all_values if val is not None):
-        list_type = "Any"
-        if all_values and all_values[0]:
-            list_types = set(type(val).__name__ for val in all_values[0] if val is not None)
-            if len(list_types) == 1:
-                list_type = list(list_types)[0]
-        field_type = f"List[{list_type}]"
-    elif all(isinstance(val, str) for val in all_values if val is not None):
+    elif all(isinstance(val, list) for val in data if val is not None):
+        field_type = "List"
+        all_field_value_types = set()
+        for val in data:
+            if val:
+                for item in val:
+                    all_field_value_types.add(type(item).__name__)
+        if len(all_field_value_types) == 1:
+            field_type = f"List[{list(all_field_value_types)[0]}]"
+    elif all(isinstance(val, str) for val in data if val is not None):
         field_type = "str"
-    elif all(isinstance(val, int) for val in all_values if val is not None):
+    elif all(isinstance(val, int) for val in data if val is not None):
         field_type = "int"
-    elif all(isinstance(val, float) for val in all_values if val is not None):
+    elif all(isinstance(val, float) for val in data if val is not None):
         field_type = "float"
-    elif all(isinstance(val, bool) for val in all_values if val is not None):
+    elif all(isinstance(val, bool) for val in data if val is not None):
         field_type = "bool"
     return field_type
 
