@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dentopy"
-version = "0.1.1"
+version = "0.1.3"
 description = ""
 authors = ["harsh-leen <harsh@leen.dev>"]
 readme = "README.md"
