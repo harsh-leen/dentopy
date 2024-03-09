@@ -1,9 +1,30 @@
 #!/usr/bin/env python3
 
-from typing import Dict, Set
+from typing import Any, Dict, List, Set
 import click
 import json
 import os
+
+def determine_field_type_from_values(all_values: List[Any]) -> str:
+    field_type = "Any"
+    if all(isinstance(val, dict) for val in all_values if val is not None):
+        field_type = "Dict"
+    elif all(isinstance(val, list) for val in all_values if val is not None):
+        list_type = "Any"
+        if all_values and all_values[0]:
+            list_types = set(type(val).__name__ for val in all_values[0] if val is not None)
+            if len(list_types) == 1:
+                list_type = list(list_types)[0]
+        field_type = f"List[{list_type}]"
+    elif all(isinstance(val, str) for val in all_values if val is not None):
+        field_type = "str"
+    elif all(isinstance(val, int) for val in all_values if val is not None):
+        field_type = "int"
+    elif all(isinstance(val, float) for val in all_values if val is not None):
+        field_type = "float"
+    elif all(isinstance(val, bool) for val in all_values if val is not None):
+        field_type = "bool"
+    return field_type
 
 def process_file(file_path: str, output_directory: str):
     with open(file_path, 'r') as file:
@@ -16,7 +37,6 @@ def process_file(file_path: str, output_directory: str):
 
     # Initialize containers for field definitions
     fields: Dict[str, str] = {}
-    typing_imports: Set[str] = set()
     required_imports = ["from pydantic import BaseModel"]  # Always required for BaseModel
 
     keys_frequency: Dict[str, int] = {}
@@ -26,38 +46,12 @@ def process_file(file_path: str, output_directory: str):
 
     for key in keys_frequency:
         all_values = [item.get(key) for item in data if key in item]
-        field_type = "Any"
-        typing_imports.add("Any")
-
-        if all(isinstance(val, dict) for val in all_values if val is not None):
-            field_type = "Dict[str, Any]"
-            typing_imports.add("Dict")
-        elif all(isinstance(val, list) for val in all_values if val is not None):
-            list_type = "Any"
-            typing_imports.add("List")
-            if all_values and all_values[0]:
-                list_types = set(type(val).__name__ for val in all_values[0] if val is not None)
-                if len(list_types) == 1:
-                    list_type = list(list_types)[0]
-            field_type = f"List[{list_type}]"
-        elif all(isinstance(val, str) for val in all_values if val is not None):
-            field_type = "str"
-        elif all(isinstance(val, int) for val in all_values if val is not None):
-            field_type = "int"
-        elif all(isinstance(val, float) for val in all_values if val is not None):
-            field_type = "float"
-        elif all(isinstance(val, bool) for val in all_values if val is not None):
-            field_type = "bool"
+        field_type = determine_field_type_from_values(all_values)
 
         if keys_frequency[key] < len(data):  # Field is not present in all items, make it optional
             fields[key] = f"Optional[{field_type}] = None"
-            typing_imports.add("Optional")
         else:
             fields[key] = field_type
-
-    # Generate typing imports
-    if typing_imports:
-        required_imports.append(f"from typing import {', '.join(sorted(typing_imports))}")
 
     # Generate the model definition
     model_content = [f"class {pydantic_model_name}(BaseModel):"]
