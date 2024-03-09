@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional
 import click
 import json
 import os
+
+from pydantic import BaseModel
+
+class FieldMetadata(BaseModel):
+    key: Optional[str] = None
+    field_type: str
+    is_optional: bool
+
 
 def determine_field_type_from_values(all_values: List[Any]) -> str:
     field_type = "Any"
