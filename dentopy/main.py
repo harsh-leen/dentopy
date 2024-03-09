@@ -37,7 +37,6 @@ def process_file(file_path: str, output_directory: str):
 
     # Initialize containers for field definitions
     fields: Dict[str, str] = {}
-    required_imports = ["from pydantic import BaseModel"]  # Always required for BaseModel
 
     keys_frequency: Dict[str, int] = {}
     for item in data:
@@ -59,7 +58,7 @@ def process_file(file_path: str, output_directory: str):
         model_content.append(f"    {key}: {field_type}")
 
     # Prepare the output content including imports
-    output_content = "\n".join(required_imports) + "\n\n" + "\n".join(model_content)
+    output_content = "\n".join(model_content)
     output_file_path = os.path.join(output_directory, f"{pydantic_model_name}.py")
     os.makedirs(output_directory, exist_ok=True)
     with open(output_file_path, 'w') as output_file:
